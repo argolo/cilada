@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f8fcfa" />
+  <meta name="description"
+    content="Cilada: CLI Python que lê um contrato OpenAPI, gera os cenários e dispara o teste de carga com Locust. Instale pelo pip e sai na estrada." />
+  <title>Cilada: teste de carga orientado por OpenAPI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #151f1a;
+      --muted: #5c726a;
+      --line: #d8e8e1;
+      --paper: #f8fcfa;
+      --soft: #ecf5f0;
+      --accent: #1a8f62;
+      --accent-dark: #116644;
+      --accent-light: #d0f0e4;
+      --code-bg: #111d18;
+      --code-text: #d4f5e7;
+      --radius: 14px;
+      --shadow: 0 20px 60px rgba(10, 30, 20, 0.13);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      padding-top: 72px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code,
+    pre,
+    .wordmark,
+    .eyebrow-mono {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    /* ── Header ───────────────────────────────────── */
+    header {
+      position: fixed;
+      z-index: 10;
+      top: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 72px;
+      padding: 0 max(24px, calc((100% - 1120px) / 2));
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--paper) 88%, transparent);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .wordmark {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wordmark span {
+      color: var(--accent);
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    nav a:hover {
+      color: var(--accent);
+      transition: color .2s;
+    }
+
+    .nav-button {
+      padding: 9px 15px;
+      color: var(--paper);
+      background: var(--ink);
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      transition: background .2s;
+    }
+
+    .nav-button:hover {
+      background: var(--accent-dark);
+    }
+
+    /* ── Hero ─────────────────────────────────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 64px;
+      align-items: center;
+      padding: 100px 0 80px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 18px;
+      padding: 4px 10px;
+      background: var(--accent-light);
+      color: var(--accent-dark);
+      border-radius: 6px;
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+
+    h1 {
+      font-size: clamp(3rem, 6.5vw, 5.6rem);
+      line-height: 0.97;
+      letter-spacing: -0.07em;
+      font-weight: 900;
+    }
+
+    h1 em {
+      color: var(--accent);
+      font-style: normal;
+    }
+
+    .cargo-truck {
+      width: 100%;
+      max-width: 470px;
+      justify-self: end;
+    }
+
+    .cargo-truck svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .cargo-truck .truck-body {
+      animation: truck-roll 4s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    @keyframes truck-roll {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      25% {
+        transform: translateX(6px);
+      }
+
+      75% {
+        transform: translateX(-4px);
+      }
+    }
+
+    .lede {
+      max-width: 520px;
+      margin: 24px 0 36px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.7;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 0 20px;
+      border-radius: 9px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      transition: all .2s;
+    }
+
+    .button.primary {
+      color: white;
+      background: var(--accent);
+    }
+
+    .button.primary:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(26, 143, 98, .3);
+    }
+
+    .button.secondary {
+      border: 1px solid var(--line);
+      background: white;
+    }
+
+    .button.secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    /* ── Trust strip ──────────────────────────────── */
+    .trust {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .trust-inner {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .trust-item {
+      padding: 28px 32px 28px 0;
+    }
+
+    .trust-item+.trust-item {
+      padding-left: 32px;
+      border-left: 1px solid var(--line);
+    }
+
+    .trust-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .trust-item strong span {
+      color: var(--accent);
+    }
+
+    .trust-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    /* ── Sections ─────────────────────────────────── */
+    section {
+      padding: 100px 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 60px;
+      margin-bottom: 52px;
+      align-items: start;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 3.5vw, 3rem);
+      line-height: 1.05;
+      letter-spacing: -0.055em;
+      font-weight: 800;
+    }
+
+    .section-head p {
+      max-width: 540px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    /* ── Features ─────────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature {
+      min-height: 200px;
+      padding: 24px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      transition: box-shadow .2s, transform .2s;
+    }
+
+    .feature:hover {
+      box-shadow: 0 8px 32px rgba(10, 30, 20, .1);
+      transform: translateY(-2px);
+    }
+
+    .feature-number {
+      display: block;
+      margin-bottom: 32px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--accent);
+    }
+
+    .feature-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--accent-light);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 1.1rem;
+    }
+
+    .feature h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      letter-spacing: -0.025em;
+      font-weight: 700;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    /* ── Reports section ──────────────────────────── */
+    .reports-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .report-card {
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      transition: box-shadow .2s, transform .2s;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .report-card:hover {
+      box-shadow: 0 8px 32px rgba(10, 30, 20, .1);
+      transform: translateY(-2px);
+    }
+
+    .report-card-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .report-card h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .report-card p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .report-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      letter-spacing: 0.06em;
+    }
+
+    .report-tag.html {
+      background: #fff0e0;
+      color: #b36a00;
+    }
+
+    .report-tag.csv {
+      background: var(--accent-light);
+      color: var(--accent-dark);
+    }
+
+    /* ── Steps ────────────────────────────────────── */
+    .workflow {
+      background: var(--soft);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .step {
+      padding-top: 22px;
+      border-top: 2px solid var(--ink);
+    }
+
+    .step-num {
+      font-size: 0.75rem;
+      font-weight: 800;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+    }
+
+    .step h3 {
+      margin: 12px 0 8px;
+      font-size: 1.02rem;
+      letter-spacing: -0.025em;
+      font-weight: 700;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    /* ── Config ───────────────────────────────────── */
+    .configuration {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .config-text h2 {
+      margin-bottom: 16px;
+    }
+
+    .config-text p {
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.7;
+      margin: 0 0 12px;
+    }
+
+    .snippet {
+      margin: 0;
+      padding: 26px;
+      overflow-x: auto;
+      color: var(--code-text);
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      font-size: 0.8rem;
+      line-height: 1.8;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, .05);
+    }
+
+    .sk {
+      color: #88d4f0;
+    }
+
+    .sv {
+      color: #8fcca8;
+    }
+
+    .svv {
+      color: #f5d784;
+    }
+
+    .sc {
+      color: #3d6050;
+    }
+
+    .se {
+      color: #f0a070;
+    }
+
+    .sn {
+      color: #f0a070;
+    }
+
+    /* ── Security ─────────────────────────────────── */
+    .security {
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: var(--radius);
+      padding: 40px 48px;
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+      margin: 0 0 100px;
+    }
+
+    .security-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .security h3 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      letter-spacing: -0.025em;
+    }
+
+    .security p {
+      margin: 0;
+      color: #8aacaa;
+      font-size: 0.9rem;
+      line-height: 1.65;
+      max-width: 680px;
+    }
+
+    .security code {
+      background: rgba(255, 255, 255, .1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    /* ── Quickstart ───────────────────────────────── */
+    .quickstart-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: white;
+    }
+
+    .qs-step {
+      padding: 32px 28px;
+      border-right: 1px solid var(--line);
+    }
+
+    .qs-step:last-child {
+      border-right: none;
+    }
+
+    .qs-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .qs-step h3 {
+      margin: 0 0 12px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .qs-step pre {
+      margin: 0;
+      padding: 12px 14px;
+      background: var(--soft);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      color: var(--ink);
+    }
+
+    .qs-step p {
+      margin: 12px 0 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Divider ──────────────────────────────────── */
+    .divider {
+      width: 60px;
+      height: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin: 0 0 20px;
+    }
+
+    /* ── Footer ───────────────────────────────────── */
+    footer {
+      padding: 36px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .footer-content strong {
+      color: var(--ink);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent);
+    }
+
+    /* ── Responsive ───────────────────────────────── */
+    @media (max-width: 860px) {
+      .shell {
+        width: min(100% - 36px, 640px);
+      }
+
+      nav a:not(.nav-button) {
+        display: none;
+      }
+
+      .hero,
+      .section-head,
+      .configuration {
+        grid-template-columns: 1fr;
+        gap: 36px;
+      }
+
+      .hero {
+        padding: 72px 0 60px;
+      }
+
+      .trust-inner,
+      .feature-grid,
+      .steps,
+      .quickstart-grid,
+      .reports-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .trust-item+.trust-item {
+        padding-left: 0;
+        border-left: none;
+        border-top: 1px solid var(--line);
+      }
+
+      .trust-item {
+        padding: 22px 0;
+      }
+
+      section {
+        padding: 72px 0;
+      }
+
+      .section-head {
+        margin-bottom: 36px;
+      }
+
+      .qs-step {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .qs-step:last-child {
+        border-bottom: none;
+      }
+
+      .security {
+        flex-direction: column;
+        gap: 16px;
+        padding: 28px 24px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header {
+        padding-inline: 18px;
+      }
+
+      .footer-content {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      h1 {
+        font-size: clamp(2.5rem, 12vw, 4rem);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <a class="wordmark" href="#top">
+      <span>cilada</span>
+    </a>
+    <nav aria-label="Navegação principal">
+      <a href="#recursos">Recursos</a>
+      <a href="#relatorios">Relatórios</a>
+      <a href="#configuracao">Configuração</a>
+      <a href="#inicio-rapido">Início rápido</a>
+      <a class="nav-button" href="https://github.com/argolo/cilada" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- Hero -->
+    <div class="shell hero">
+      <div>
+        <p class="eyebrow">Teste de carga OpenAPI</p>
+        <h1>É uma <em>cilada</em>,<br>Bino!</h1>
+        <p class="lede">
+          Aponte para um contrato OpenAPI, ajuste o
+          <code>.cilada.toml</code> e o Cilada já sai na estrada: gera os
+          cenários, manda a carga com o Locust e te entrega um relatório
+          completo. Tudo sem escrever um caso de teste.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#inicio-rapido">Início rápido</a>
+          <a class="button secondary" href="https://github.com/argolo/cilada" target="_blank"
+            rel="noreferrer">Repositório ↗</a>
+        </div>
+      </div>
+
+      <div class="cargo-truck" role="img" aria-label="Ilustração vetorial de um caminhão transportando carga">
+        <svg viewBox="0 0 560 370" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M40 304H520" stroke="#B8D9CA" stroke-width="8" stroke-linecap="round" />
+          <path d="M72 329H180M386 329H488" stroke="#D0F0E4" stroke-width="6" stroke-linecap="round" />
+          <g class="truck-body">
+            <rect x="52" y="104" width="294" height="154" rx="13" fill="#1A8F62" />
+            <path d="M68 120H330V242H68V120Z" fill="#D0F0E4" opacity=".3" />
+            <path d="M87 133H312M87 158H312M87 183H312M87 208H312" stroke="#F8FCFA" stroke-width="4" opacity=".3" />
+            <path d="M346 165H423L487 224V266H346V165Z" fill="#116644" />
+            <path d="M368 180H415L450 218H368V180Z" fill="#D0F0E4" />
+            <path d="M345 224H487V266H345V224Z" fill="#1A8F62" />
+            <path d="M49 266H493" stroke="#151F1A" stroke-width="13" stroke-linecap="round" />
+            <path d="M342 257H489" stroke="#D0F0E4" stroke-width="6" />
+            <path d="M487 231H504" stroke="#F5D784" stroke-width="12" stroke-linecap="round" />
+            <path d="M62 258V274M329 258V274" stroke="#151F1A" stroke-width="8" />
+            <circle cx="125" cy="281" r="37" fill="#151F1A" />
+            <circle cx="125" cy="281" r="15" fill="#D0F0E4" />
+            <circle cx="270" cy="281" r="37" fill="#151F1A" />
+            <circle cx="270" cy="281" r="15" fill="#D0F0E4" />
+            <circle cx="385" cy="281" r="37" fill="#151F1A" />
+            <circle cx="385" cy="281" r="15" fill="#D0F0E4" />
+            <circle cx="455" cy="281" r="37" fill="#151F1A" />
+            <circle cx="455" cy="281" r="15" fill="#D0F0E4" />
+          </g>
+          <path d="M86 99C130 65 186 64 228 87" stroke="#1A8F62" stroke-width="8" stroke-linecap="round"
+            stroke-dasharray="8 16" />
+          <circle cx="77" cy="105" r="11" fill="#F0A070" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Trust strip -->
+    <div class="trust">
+      <div class="shell trust-inner">
+        <div class="trust-item">
+          <strong>Python <span>3.11+</span></strong>
+          <p>Tipagem estrita, sintaxe moderna e zero gambiarras de compatibilidade.</p>
+        </div>
+        <div class="trust-item">
+          <strong>Zero <span>boilerplate</span></strong>
+          <p>O contrato OpenAPI é a fonte da verdade. Você não escreve caso nenhum.</p>
+        </div>
+        <div class="trust-item">
+          <strong>Locust <span>nativo</span></strong>
+          <p>Engine de carga battle-tested, sem camada extra de abstração no meio do caminho.</p>
+        </div>
+        <div class="trust-item">
+          <strong>MIT <span>License</span></strong>
+          <p>Código aberto, sem dependências proprietárias e livre para usar em qualquer projeto.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <section id="recursos">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Por que o Cilada?</h2>
+          <p>
+            Montar uma suíte de carga do zero leva tempo. O Cilada lê o contrato,
+            entende os endpoints e gera os cenários pra você. É só ajustar o TOML
+            e apertar o gatilho.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature">
+            <span class="feature-number">01</span>
+            <div class="feature-icon">📄</div>
+            <h3>Contrato como fonte da verdade</h3>
+            <p>Lê o OpenAPI online e gera os casos com exemplos, defaults, enums e valores de limite. Atualizou o
+              contrato? Na próxima execução os casos já refletem as mudanças.</p>
+          </div>
+          <div class="feature">
+            <span class="feature-number">02</span>
+            <div class="feature-icon">🎯</div>
+            <h3>Seleção granular de endpoints</h3>
+            <p><code>include_paths</code> e <code>exclude_paths</code> aceitam padrões glob como
+              <code>/patients/*</code>. Controle explícito dos verbos HTTP via <code>enabled_methods</code>.
+            </p>
+          </div>
+          <div class="feature">
+            <span class="feature-number">03</span>
+            <div class="feature-icon">🏃</div>
+            <h3>Modo dry-run</h3>
+            <p>Valide o contrato, a seleção e os casos gerados sem mandar um único byte de carga real. Perfeito para
+              rodar no CI antes do disparo de verdade.</p>
+          </div>
+          <div class="feature">
+            <span class="feature-number">04</span>
+            <div class="feature-icon">🔐</div>
+            <h3>Segredos por variável de ambiente</h3>
+            <p>Use <code>${CILADA_TOKEN}</code> no TOML e injete via CI ou cofre de secrets. Headers sensíveis usam
+              entrada oculta no modo interativo.</p>
+          </div>
+          <div class="feature">
+            <span class="feature-number">05</span>
+            <div class="feature-icon">📊</div>
+            <h3>Resumo consolidado ao final</h3>
+            <p>Sempre que o teste termina, você vê o total de requisições, falhas, tempos mín/méd/máx e o breakdown por
+              método e código HTTP.</p>
+          </div>
+          <div class="feature">
+            <span class="feature-number">06</span>
+            <div class="feature-icon">🤫</div>
+            <h3>Modo não-interativo</h3>
+            <p><code>--non-interactive</code> não solicita valores de headers, mas pede confirmação antes de executar
+              sem headers obrigatórios.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reports -->
+    <section id="relatorios" class="workflow">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Relatórios que prestam</h2>
+          <p>
+            Depois da carga, o Cilada entrega dois formatos de relatório
+            prontos para você analisar, compartilhar ou jogar num dashboard.
+          </p>
+        </div>
+        <div class="reports-grid">
+          <div class="report-card">
+            <div class="report-card-icon">📈</div>
+            <div>
+              <h3>Relatório HTML interativo <span class="report-tag html">HTML</span></h3>
+              <p>
+                O Locust gera um relatório visual completo com gráficos de
+                requisições por segundo, tempo de resposta ao longo do tempo e
+                tabela de estatísticas por endpoint. Configure o caminho com
+                <code>html_report</code> no TOML e ele fica salvo automaticamente.
+              </p>
+            </div>
+          </div>
+          <div class="report-card">
+            <div class="report-card-icon">📋</div>
+            <div>
+              <h3>Estatísticas em CSV <span class="report-tag csv">CSV</span></h3>
+              <p>
+                Quatro arquivos CSV: estatísticas por endpoint, histórico por
+                janela de tempo, falhas e exceções. Configure <code>csv_prefix</code>
+                no TOML para persistir os arquivos no diretório que quiser, ou
+                deixe em branco e o Cilada usa um diretório temporário e limpa
+                tudo ao fim.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="como-funciona">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Como funciona</h2>
+          <p>Do contrato ao relatório em quatro etapas. Sem configuração elaborada, sem servidor de métricas extra.</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num">01</span>
+            <h3>Lê o contrato</h3>
+            <p>Busca o OpenAPI da URL configurada, valida a estrutura e resolve a base URL antes de qualquer outra
+              coisa.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">02</span>
+            <h3>Gera os cenários</h3>
+            <p>Cria variações de payload usando exemplos, defaults, enums e limites. Campos opcionais são removidos em
+              algumas variações.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">03</span>
+            <h3>Manda a carga</h3>
+            <p>Passa os cenários ao Locust. Cada requisição sorteia aleatoriamente um caso. A tabela nativa do Locust
+              exibe o andamento.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">04</span>
+            <h3>Entrega os relatórios</h3>
+            <p>Resumo no console, relatório HTML interativo e CSVs com todas as estatísticas, por endpoint e por janela
+              de tempo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Config -->
+    <section id="configuracao">
+      <div class="shell">
+        <div class="configuration">
+          <div class="config-text">
+            <div class="divider"></div>
+            <h2>Configuração simples, controle total</h2>
+            <p>
+              Um único arquivo <code>.cilada.toml</code> controla tudo: URL do
+              OpenAPI, headers de autenticação, verbos habilitados, paths
+              incluídos e excluídos, parâmetros do Locust e caminhos dos
+              relatórios.
+            </p>
+            <p>
+              Segredos nunca vão para o arquivo. Use
+              <code>${NOME_DA_VARIAVEL}</code> e injete via CI ou cofre de
+              secrets do pipeline.
+            </p>
+          </div>
+          <pre class="snippet"><span class="sc"># .cilada.toml</span>
+
+<span class="sk">[api]</span>
+<span class="sv">openapi_url</span>      = <span class="svv">"https://api.exemplo.com/static/swagger.json"</span>
+<span class="sv">verify_tls</span>       = <span class="sn">true</span>
+<span class="sv">timeout_seconds</span>  = <span class="sn">30.0</span>
+
+<span class="sk">[api.headers]</span>
+<span class="sv">Authorization</span>    = <span class="svv">"Bearer <span class="se">${CILADA_TOKEN}</span>"</span>
+
+<span class="sk">[test]</span>
+<span class="sv">enabled_methods</span>     = <span class="svv">["GET", "HEAD", "OPTIONS"]</span>
+<span class="sv">exclude_paths</span>       = <span class="svv">["/health", "/metrics"]</span>
+<span class="sv">cases_per_operation</span> = <span class="sn">3</span>
+
+<span class="sk">[locust]</span>
+<span class="sv">users</span>       = <span class="sn">20</span>
+<span class="sv">spawn_rate</span>  = <span class="sn">5.0</span>
+<span class="sv">run_time</span>    = <span class="svv">"1m"</span>
+<span class="sv">headless</span>    = <span class="sn">true</span>
+<span class="sv">csv_prefix</span>  = <span class="svv">"reports/cilada"</span>
+<span class="sv">html_report</span> = <span class="svv">"reports/cilada.html"</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <div class="shell">
+      <div class="security">
+        <div class="security-icon">🛡️</div>
+        <div>
+          <h3>Segurança operacional primeiro</h3>
+          <p>
+            O exemplo padrão habilita só <code>GET</code>, <code>HEAD</code> e
+            <code>OPTIONS</code>. Verbos destrutivos como <code>POST</code>,
+            <code>PUT</code>, <code>PATCH</code> e <code>DELETE</code> devem ser
+            ativados só em ambientes isolados, com dados descartáveis e
+            autorização explícita. Nunca versione tokens no TOML. Use
+            <code>${NOME_DA_VARIAVEL}</code> e injete pelo cofre do pipeline.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quickstart -->
+    <section id="inicio-rapido">
+      <div class="shell">
+        <div class="section-head">
+          <h2>Início rápido</h2>
+          <p>Três passos para sair do zero ao primeiro relatório de carga.</p>
+        </div>
+        <div class="quickstart-grid">
+          <div class="qs-step">
+            <div class="qs-num">1</div>
+            <h3>Prepare o ambiente</h3>
+            <pre>python3 -m venv .venv
+source .venv/bin/activate
+pip3 install cilada</pre>
+            <p>Requer Python 3.11+. Funciona em qualquer virtualenv.</p>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">2</div>
+            <h3>Configure o TOML</h3>
+            <pre>cilada config init</pre>
+            <p>Crie a configuração inicial e ajuste a URL do OpenAPI, os headers e os segredos conforme necessário.</p>
+          </div>
+          <div class="qs-step">
+            <div class="qs-num">3</div>
+            <h3>Execute</h3>
+            <pre># validação sem carga real
+cilada run --dry-run
+
+# disparo de carga
+cilada run</pre>
+            <p>Comece com o dry-run para validar o contrato e os cenários antes de mandar carga de verdade para o
+              servidor.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="shell footer-content">
+      <span><strong>cilada</strong> — teste de carga orientado por OpenAPI &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; por
+        André Argôlo (<a href="https://argolo.dev">argolo.dev</a>)</span>
+      <div class="footer-links">
+        <a href="https://pypi.org/project/cilada/" target="_blank" rel="noreferrer">PyPI</a>
+        <a href="https://github.com/argolo/cilada" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="#inicio-rapido">Docs</a>
+        <a href="#top">↑ Topo</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+
+</html>
