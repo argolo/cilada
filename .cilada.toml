@@ -1,0 +1,28 @@
+[api]
+openapi_url = "https://patient.stage.b2b.google.kompa.com.br/static/swagger.json"
+# base_url = "https://api.example.com"
+verify_tls = true
+timeout_seconds = 30.0
+
+[api.headers]
+Accept = "application/json"
+# Authorization = "Bearer ${CILADA_TOKEN}"
+# X-Tenant = "${CILADA_TENANT}"
+
+[test]
+# Métodos mutáveis só devem ser habilitados em ambiente descartável/homologação.
+enabled_methods = ["GET", "HEAD", "OPTIONS"]
+include_paths = []
+exclude_paths = ["/health", "/metrics"]
+cases_per_operation = 1
+
+[locust]
+users = 1
+spawn_rate = 2.0
+run_time = "1m"
+headless = true
+web_host = "127.0.0.1"
+web_port = 8089
+csv_prefix = "reports/cilada"
+html_report = "reports/cilada.html"
+
