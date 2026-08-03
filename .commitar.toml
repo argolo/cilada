@@ -1,0 +1,20 @@
+[ai]
+provider = "ollama"
+models = ["gemma4:e4b", "qwen2.5-coder:14b"]
+endpoint = "http://localhost:11434/api/generate"
+max_input_tokens = 12000
+context_window_tokens = 32768
+max_output_tokens = 80
+temperature = 0.2
+timeout_seconds = 60
+
+[commit]
+language = "pt-BR"
+format = "conventional"
+include_added = true
+output = "commit"
+confirm = false
+
+[limits]
+max_files_per_request = 50
+max_diff_bytes = 100000
