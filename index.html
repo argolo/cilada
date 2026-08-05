@@ -765,10 +765,9 @@
         <p class="eyebrow">Teste de carga OpenAPI</p>
         <h1>É uma <em>cilada</em>,<br>Bino!</h1>
         <p class="lede">
-          Aponte para um contrato OpenAPI, ajuste o
-          <code>.cilada.toml</code> e o Cilada já sai na estrada: gera os
-          cenários, manda a carga com o Locust e te entrega um relatório
-          completo. Tudo sem escrever um caso de teste.
+          Aponte para um contrato OpenAPI via linha de comando ou arquivo de
+          configuração e o Cilada já sai na estrada: gera os cenários, manda a carga
+          com o Locust e te entrega um relatório completo. Tudo sem escrever um caso de teste.
         </p>
         <div class="actions">
           <a class="button primary" href="#inicio-rapido">Início rápido</a>
@@ -851,10 +850,10 @@
           </div>
           <div class="feature">
             <span class="feature-number">02</span>
-            <div class="feature-icon">🎯</div>
-            <h3>Seleção granular de endpoints</h3>
-            <p><code>include_paths</code> e <code>exclude_paths</code> aceitam padrões glob como
-              <code>/patients/*</code>. Controle explícito dos verbos HTTP via <code>enabled_methods</code>.
+            <div class="feature-icon">⚡</div>
+            <h3>100% CLI & TOML Opcional</h3>
+            <p>O arquivo <code>.cilada.toml</code> é opcional. Defina parâmetros como <code>--users</code>,
+              <code>-H</code>, <code>-m</code> e <code>--spawn-rate</code> direto no comando, ou use o TOML se preferir.
             </p>
           </div>
           <div class="feature">
@@ -882,8 +881,8 @@
             <span class="feature-number">06</span>
             <div class="feature-icon">🤫</div>
             <h3>Modo não-interativo</h3>
-            <p><code>--non-interactive</code> não solicita valores de headers, mas pede confirmação antes de executar
-              sem headers obrigatórios.</p>
+            <p><code>--non-interactive</code> executa com zero interação: ignora solicitações de valores e confirmações
+              no terminal, ideal para pipelines de CI/CD.</p>
           </div>
         </div>
       </div>
@@ -972,20 +971,19 @@
         <div class="configuration">
           <div class="config-text">
             <div class="divider"></div>
-            <h2>Configuração simples, controle total</h2>
+            <h2>CLI em primeiro lugar, TOML opcional</h2>
             <p>
-              Um único arquivo <code>.cilada.toml</code> controla tudo: URL do
-              OpenAPI, headers de autenticação, verbos habilitados, paths
-              incluídos e excluídos, parâmetros do Locust e caminhos dos
-              relatórios.
+              Tudo pode ser configurado por argumentos de linha de comando com precedência máxima, ou centralizado em um
+              arquivo <code>.cilada.toml</code> opcional: URL do OpenAPI, headers de autenticação, verbos habilitados,
+              paths incluídos e excluídos, parâmetros do Locust e relatórios.
             </p>
             <p>
-              Segredos nunca vão para o arquivo. Use
-              <code>${NOME_DA_VARIAVEL}</code> e injete via CI ou cofre de
-              secrets do pipeline.
+              A precedência é sempre <strong>Argumentos CLI &gt; Arquivo TOML &gt; Defaults</strong>.
+              Segredos podem ser injetados por variáveis como <code>${CILADA_TOKEN}</code> ou passados por parâmetro
+              CLI.
             </p>
           </div>
-          <pre class="snippet"><span class="sc"># .cilada.toml</span>
+          <pre class="snippet"><span class="sc"># .cilada.toml (opcional)</span>
 
 <span class="sk">[api]</span>
 <span class="sv">openapi_url</span>      = <span class="svv">"https://api.exemplo.com/static/swagger.json"</span>
@@ -1047,20 +1045,22 @@ pip3 install cilada</pre>
           </div>
           <div class="qs-step">
             <div class="qs-num">2</div>
-            <h3>Configure o TOML</h3>
-            <pre>cilada config init</pre>
-            <p>Crie a configuração inicial e ajuste a URL do OpenAPI, os headers e os segredos conforme necessário.</p>
+            <h3>CLI ou TOML (opcional)</h3>
+            <pre># Opcional: criar modelo de arquivo TOML
+cilada config init</pre>
+            <p>Rode direto via linha de comando ou crie um modelo <code>.cilada.toml</code> se preferir salvar em
+              arquivo.</p>
           </div>
           <div class="qs-step">
             <div class="qs-num">3</div>
             <h3>Execute</h3>
-            <pre># validação sem carga real
-cilada run --dry-run
+            <pre># Execução direta por argumentos CLI:
+cilada run -u https://api.exemplo.com/openapi.json \
+  --users 20 -H "Authorization: Bearer token"
 
-# disparo de carga
-cilada run</pre>
-            <p>Comece com o dry-run para validar o contrato e os cenários antes de mandar carga de verdade para o
-              servidor.</p>
+# Validação sem carga real (dry-run):
+cilada run --dry-run</pre>
+            <p>Comece com o dry-run para validar o contrato e os cenários antes de disparar a carga de verdade.</p>
           </div>
         </div>
       </div>
