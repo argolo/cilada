@@ -26,17 +26,44 @@ version control and reference environment variables such as
 
 ## Usage
 
+The `.cilada.toml` configuration file is **optional**. All settings can be passed directly via CLI arguments or defined in `.cilada.toml`.
+
 ```bash
+# Run using .cilada.toml (if present)
 cilada run
+
+# Run without configuration file by providing --openapi-url via CLI:
 cilada run --openapi-url https://sandbox.example.com/openapi.json
-cilada run --dry-run
-cilada run --non-interactive
+
+# Provide full configuration via CLI arguments:
+cilada run \
+  --openapi-url https://api.example.com/openapi.json \
+  --users 20 \
+  --spawn-rate 5.0 \
+  --run-time 2m \
+  -H "Authorization: Bearer mytoken" \
+  -H "X-Tenant: mytenant" \
+  -m GET -m POST \
+  --cases-per-operation 3 \
+  --timeout-seconds 15
+
+# Validate contract and list cases without load:
+cilada run --dry-run --openapi-url https://sandbox.example.com/openapi.json
+
+# Non-interactive run (bypasses all interactive prompts and confirmations):
+cilada run --non-interactive --openapi-url https://sandbox.example.com/openapi.json
 ```
 
-Interactive runs request a missing OpenAPI URL and required headers. The OpenAPI
-URL is required to load the contract. Sensitive header names (`Authorization`,
-`token`, and `key`) use hidden input. Declining a required header triggers an
-explicit confirmation; accepted runs omit that header from requests.
+### Configuration Precedence
+
+Order of precedence: **CLI Arguments > `.cilada.toml` file > Standard Defaults**.
+
+All CLI arguments available for `cilada run`:
+- **API**: `--openapi-url` (`-u`), `--base-url` (`-b`), `--header` (`-H`), `--verify-tls`/`--no-verify-tls`, `--timeout-seconds`
+- **Test**: `--enabled-methods` (`-m`), `--include-paths`, `--exclude-paths`, `--cases-per-operation`, `--failure-status-classes`
+- **Locust**: `--users`, `--spawn-rate`, `--run-time`, `--headless`/`--no-headless`, `--web-host`, `--web-port`, `--csv-prefix`, `--html-report`
+
+Interactive runs request a missing OpenAPI URL and required headers if not supplied via CLI or TOML file. Sensitive header names (`Authorization`, `token`, and `key`) use hidden input. Declining a required header triggers an explicit confirmation; accepted runs omit that header from requests. With `--non-interactive`, zero interaction is performed (all prompts and confirmations are bypassed).
 
 ## Progress and results
 
@@ -52,12 +79,10 @@ times. Requests that fail before receiving an HTTP response are listed as
 
 ## Case generation
 
-- `test.enabled_methods` controls executed methods.
+- `test.enabled_methods` / `-m` controls executed methods.
 - `include_paths` and `exclude_paths` accept glob patterns such as `/patients/*`.
-- `cases_per_operation` produces variants from examples, defaults, enums, optional
-  fields, and boundary values.
-- `test.failure_status_classes` defaults to `[5]`; use `[4, 5]` to also mark 4xx
-  responses as failures.
+- `cases_per_operation` / `--cases-per-operation` produces variants from examples, defaults, enums, optional fields, and boundary values.
+- `test.failure_status_classes` / `--failure-status-classes` defaults to `[5]`; use `[4, 5]` to also mark 4xx responses as failures.
 
 ## Safety
 
