@@ -76,6 +76,7 @@ def _expand_env(value: str) -> str:
         value: The input string containing potential environment variable placeholders.
 
     """
+
     def replace(match: re.Match[str]) -> str:
         """Replaces a match object with the value of an environment variable.
 
@@ -214,10 +215,12 @@ def _boolean(value: Any, field_name: str) -> bool:
     return value
 
 
-def load_settings(path: Path) -> Settings:
+def load_settings(path: Path = Path(".cilada.toml")) -> Settings:
     """Read a TOML file and return typed settings."""
     if not path.exists():
-        return Settings()
+        if path.name == ".cilada.toml":
+            return Settings()
+        raise ConfigurationError(f"Configuration file {path} not found.")
 
     try:
         with path.open("rb") as stream:
