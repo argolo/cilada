@@ -15,7 +15,13 @@ from typing import Annotated
 
 import typer
 
-from cilada.config import ConfigurationError, Settings, load_settings
+from cilada.config import (
+    HTTP_METHODS,
+    ConfigurationError,
+    Settings,
+    load_settings,
+    validate_settings,
+)
 from cilada.openapi import (
     OpenApiError,
     build_cases,
@@ -347,8 +353,76 @@ def _complete_interactively(settings: Settings, interactive: bool) -> None:
     """
     if not settings.api.openapi_url:
         if not interactive:
-            _abort("provide --openapi-url or api.openapi_url in .cilada.toml")
+            _abort("provide --openapi-url or api.openapi_url in configuration")
         settings.api.openapi_url = typer.prompt("/openapi.json URL")
+
+
+def _parse_headers(
+    headers: list[str] | None, existing: dict[str, str]
+) -> dict[str, str]:
+    """Parse header options into a dictionary."""
+    result = dict(existing)
+    if not headers:
+        return result
+    for item in headers:
+        if ":" in item:
+            key, val = item.split(":", 1)
+        elif "=" in item:
+            key, val = item.split("=", 1)
+        else:
+            raise ConfigurationError(
+                f"Invalid header format: {item!r}. "
+                "Expected 'Name: Value' or 'Name=Value'."
+            )
+        result[key.strip()] = val.strip()
+    return result
+
+
+def _parse_string_list(items: list[str] | None, existing: list[str]) -> list[str]:
+    """Parse list of strings, splitting comma-separated items."""
+    if items is None:
+        return existing
+    result: list[str] = []
+    for entry in items:
+        for sub in entry.split(","):
+            stripped = sub.strip()
+            if stripped:
+                result.append(stripped)
+    return result
+
+
+def _parse_methods(methods: list[str] | None, existing: list[str]) -> list[str]:
+    """Parse and validate HTTP method names."""
+    if methods is None:
+        return existing
+    parsed = [item.upper() for item in _parse_string_list(methods, [])]
+    invalid = sorted(set(parsed) - HTTP_METHODS)
+    if invalid:
+        raise ConfigurationError(f"Invalid HTTP methods: {', '.join(invalid)}.")
+    return parsed or ["GET", "HEAD", "OPTIONS"]
+
+
+def _parse_status_classes(classes: list[str] | None, existing: list[int]) -> list[int]:
+    """Parse and validate failure status code classes."""
+    if classes is None:
+        return existing
+    result: list[int] = []
+    for entry in classes:
+        for sub in entry.split(","):
+            stripped = sub.strip()
+            if stripped:
+                try:
+                    val = int(stripped)
+                    if val not in {1, 2, 3, 4, 5}:
+                        raise ValueError
+                    result.append(val)
+                except ValueError as exc:
+                    raise ConfigurationError(
+                        "test.failure_status_classes must be integers between 1 and 5."
+                    ) from exc
+    if not result:
+        raise ConfigurationError("test.failure_status_classes cannot be empty.")
+    return result
 
 
 def _ask_missing_headers(
@@ -383,9 +457,14 @@ def _ask_missing_headers(
         else:
             missing.append(header)
 
-    if missing and not typer.confirm(
-        f"Required headers are missing ({', '.join(missing)}). Run the tests anyway?",
-        default=False,
+    if (
+        missing
+        and interactive
+        and not typer.confirm(
+            f"Required headers are missing ({', '.join(missing)}). "
+            "Run the tests anyway?",
+            default=False,
+        )
     ):
         _abort("execution cancelled because required headers are missing")
     return {header.lower() for header in missing}
@@ -435,6 +514,100 @@ def run(
         str | None,
         typer.Option("--openapi-url", "-u", help="OpenAPI document URL."),
     ] = None,
+    base_url: Annotated[
+        str | None,
+        typer.Option("--base-url", "-b", help="Base URL for the target API."),
+    ] = None,
+    headers: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--header",
+            "-H",
+            help="HTTP header ('Name: Value' or 'Name=Value'). Can be repeated.",
+        ),
+    ] = None,
+    verify_tls: Annotated[
+        bool | None,
+        typer.Option(
+            "--verify-tls/--no-verify-tls",
+            help="Enable or disable TLS certificate verification.",
+        ),
+    ] = None,
+    timeout_seconds: Annotated[
+        float | None,
+        typer.Option("--timeout-seconds", help="HTTP request timeout in seconds."),
+    ] = None,
+    enabled_methods: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--enabled-methods",
+            "-m",
+            help="HTTP methods to test. Can be repeated or comma-separated.",
+        ),
+    ] = None,
+    include_paths: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--include-paths",
+            help="Path patterns to include. Can be repeated or comma-separated.",
+        ),
+    ] = None,
+    exclude_paths: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--exclude-paths",
+            help="Path patterns to exclude. Can be repeated or comma-separated.",
+        ),
+    ] = None,
+    cases_per_operation: Annotated[
+        int | None,
+        typer.Option(
+            "--cases-per-operation",
+            help="Number of test cases to generate per OpenAPI operation.",
+        ),
+    ] = None,
+    failure_status_classes: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--failure-status-classes",
+            help="HTTP status code classes (1-5) counting as failures (e.g. 5 or 4,5).",
+        ),
+    ] = None,
+    users: Annotated[
+        int | None,
+        typer.Option("--users", help="Peak number of concurrent Locust users."),
+    ] = None,
+    spawn_rate: Annotated[
+        float | None,
+        typer.Option("--spawn-rate", help="Rate to spawn users per second."),
+    ] = None,
+    run_time: Annotated[
+        str | None,
+        typer.Option("--run-time", help="Stop load test after specified time."),
+    ] = None,
+    headless: Annotated[
+        bool | None,
+        typer.Option(
+            "--headless/--no-headless",
+            help="Run Locust in headless mode without web UI.",
+        ),
+    ] = None,
+    web_host: Annotated[
+        str | None,
+        typer.Option("--web-host", help="Host for Locust web interface."),
+    ] = None,
+    web_port: Annotated[
+        int | None,
+        typer.Option("--web-port", help="Port for Locust web interface."),
+    ] = None,
+    csv_prefix: Annotated[
+        str | None,
+        typer.Option("--csv-prefix", help="Prefix for Locust CSV report files."),
+    ] = None,
+    html_report: Annotated[
+        str | None,
+        typer.Option("--html-report", help="Path for Locust HTML report file."),
+    ] = None,
     config: Annotated[
         Path,
         typer.Option("--config", "-c", help="Configuration TOML file."),
@@ -444,8 +617,8 @@ def run(
         typer.Option(
             "--non-interactive",
             help=(
-                "Do not request values; confirm before running without "
-                "required headers."
+                "Run in non-interactive mode without requesting values "
+                "or confirmations."
             ),
         ),
     ] = False,
@@ -459,8 +632,55 @@ def run(
     """Load OpenAPI and run scenarios through Locust."""
     try:
         settings = load_settings(config)
-        if openapi_url:
+        if openapi_url is not None:
             settings.api.openapi_url = openapi_url
+        if base_url is not None:
+            settings.api.base_url = base_url
+        if headers is not None:
+            settings.api.headers = _parse_headers(headers, settings.api.headers)
+        if verify_tls is not None:
+            settings.api.verify_tls = verify_tls
+        if timeout_seconds is not None:
+            settings.api.timeout_seconds = timeout_seconds
+
+        if enabled_methods is not None:
+            settings.test.enabled_methods = _parse_methods(
+                enabled_methods, settings.test.enabled_methods
+            )
+        if include_paths is not None:
+            settings.test.include_paths = _parse_string_list(
+                include_paths, settings.test.include_paths
+            )
+        if exclude_paths is not None:
+            settings.test.exclude_paths = _parse_string_list(
+                exclude_paths, settings.test.exclude_paths
+            )
+        if cases_per_operation is not None:
+            settings.test.cases_per_operation = cases_per_operation
+        if failure_status_classes is not None:
+            settings.test.failure_status_classes = _parse_status_classes(
+                failure_status_classes, settings.test.failure_status_classes
+            )
+
+        if users is not None:
+            settings.locust.users = users
+        if spawn_rate is not None:
+            settings.locust.spawn_rate = spawn_rate
+        if run_time is not None:
+            settings.locust.run_time = run_time
+        if headless is not None:
+            settings.locust.headless = headless
+        if web_host is not None:
+            settings.locust.web_host = web_host
+        if web_port is not None:
+            settings.locust.web_port = web_port
+        if csv_prefix is not None:
+            settings.locust.csv_prefix = csv_prefix
+        if html_report is not None:
+            settings.locust.html_report = html_report
+
+        validate_settings(settings)
+
         _complete_interactively(settings, not non_interactive)
         _stage(1, "Loading the OpenAPI contract...")
         spec = fetch_spec(settings.api)
@@ -503,7 +723,7 @@ def run(
     }
     with tempfile.TemporaryDirectory(prefix="cilada-") as directory:
         temp_dir = Path(directory)
-        csv_prefix = (
+        locust_csv_prefix = (
             Path(settings.locust.csv_prefix)
             if settings.locust.csv_prefix
             else temp_dir / "locust"
@@ -525,13 +745,13 @@ def run(
         }
         try:
             result = subprocess.run(  # noqa: S603 - arguments are a controlled list
-                _locust_command(settings, locustfile, csv_prefix),
+                _locust_command(settings, locustfile, locust_csv_prefix),
                 env=environment,
                 check=False,
             )
         finally:
             _print_load_summary(
-                csv_prefix.with_name(f"{csv_prefix.name}_stats.csv"),
+                locust_csv_prefix.with_name(f"{locust_csv_prefix.name}_stats.csv"),
                 final_stats_file,
                 final_codes_file,
             )
