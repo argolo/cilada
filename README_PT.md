@@ -28,27 +28,49 @@ quiser substituir o arquivo de destino.
 
 ## Uso
 
+O arquivo `.cilada.toml` é **opcional**. Todas as configurações podem ser informadas diretamente via argumentos de linha de comando ou definidas no arquivo de configuração.
+
 ```bash
-# A URL vem do TOML
+# Execução utilizando .cilada.toml (se existir no diretório):
 cilada run
 
-# A opção tem precedência sobre o TOML
+# Execução direta sem arquivo de configuração, informando a URL via CLI:
 cilada run --openapi-url https://sandbox.example.com/openapi.json
 
-# Valida contrato, seleção e casos, sem enviar carga
-cilada run --dry-run
+# Execução completa informando todos os parâmetros via CLI:
+cilada run \
+  --openapi-url https://api.example.com/openapi.json \
+  --users 20 \
+  --spawn-rate 5.0 \
+  --run-time 2m \
+  -H "Authorization: Bearer meu_token" \
+  -H "X-Tenant: meu_tenant" \
+  -m GET -m POST \
+  --cases-per-operation 3 \
+  --timeout-seconds 15
 
-# Não solicita valores de headers; confirma se deve rodar sem os obrigatórios
-cilada run --non-interactive
+# Valida contrato, seleção e casos sem enviar carga (dry-run):
+cilada run --dry-run --openapi-url https://sandbox.example.com/openapi.json
+
+# Modo não-interativo (não solicita valores de headers):
+cilada run --non-interactive --openapi-url https://sandbox.example.com/openapi.json
 ```
+
+### Precedência das Configurações
+
+A ordem de precedência aplicada é: **Argumentos CLI > Arquivo `.cilada.toml` > Valores Padrão (Defaults)**.
+
+Todos os argumentos disponíveis para `cilada run`:
+- **API**: `--openapi-url` (`-u`), `--base-url` (`-b`), `--header` (`-H`), `--verify-tls`/`--no-verify-tls`, `--timeout-seconds`
+- **Teste**: `--enabled-methods` (`-m`), `--include-paths`, `--exclude-paths`, `--cases-per-operation`, `--failure-status-classes`
+- **Locust**: `--users`, `--spawn-rate`, `--run-time`, `--headless`/`--no-headless`, `--web-host`, `--web-port`, `--csv-prefix`, `--html-report`
 
 Em modo interativo, a CLI solicita a URL do OpenAPI e os headers obrigatórios que
 estiverem ausentes. A URL é indispensável para carregar o contrato. É possível
 recusar um header: nesse caso, a CLI confirma se os testes devem ser executados
-sem ele. Com `--non-interactive`, valores de headers não são solicitados, mas essa
-confirmação ainda é exibida caso existam headers obrigatórios ausentes; sem uma URL
-do OpenAPI configurada, o comando encerra com erro. Headers com nome sensível
-(`Authorization`, `token` ou `key`) usam entrada oculta. Valores informados
+sem ele. Com `--non-interactive`, nenhuma interação nem confirmação é solicitada (todos os prompts de valor e confirmação são ignorados); sem uma URL
+do OpenAPI configurada, o comando encerra imediatamente com erro. Headers com nome sensível
+(`Authorization`, `token` ou `key`) usam entrada oculta no modo interativo. Valores informados
 interativamente existem somente durante o processo e não são gravados no TOML.
 
 ## Progresso e resultado
