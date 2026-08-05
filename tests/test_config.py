@@ -135,3 +135,24 @@ def test_rejects_invalid_url_and_empty_report_paths(
 
     with pytest.raises(ConfigurationError, match=field):
         load_settings(config)
+
+
+def test_load_settings_returns_defaults_when_default_file_missing(
+    tmp_path: Path,
+) -> None:
+    """Tests that load_settings returns default Settings when default .cilada.toml
+    is missing.
+    """
+    missing_default = tmp_path / ".cilada.toml"
+    settings = load_settings(missing_default)
+    assert settings.locust.users == 10
+    assert settings.test.cases_per_operation == 3
+
+
+def test_load_settings_raises_error_when_custom_file_missing(tmp_path: Path) -> None:
+    """Tests that load_settings raises ConfigurationError when a custom config file
+    is missing.
+    """
+    missing_custom = tmp_path / "non_existent.toml"
+    with pytest.raises(ConfigurationError, match="not found"):
+        load_settings(missing_custom)
