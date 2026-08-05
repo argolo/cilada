@@ -1,6 +1,6 @@
 [api]
-openapi_url = "https://patient.stage.b2b.google.kompa.com.br/static/swagger.json"
-# base_url = "https://api.example.com"
+openapi_url = "http://localhost/openapi.json"
+
 verify_tls = true
 timeout_seconds = 30.0
 
