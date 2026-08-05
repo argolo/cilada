@@ -48,47 +48,29 @@ def test_missing_header_can_be_skipped_after_confirmation(
     _ask_missing_headers(Settings(), {"X-Tenant"}, interactive=True)
 
 
-def test_non_interactive_confirms_running_without_header(
+def test_non_interactive_never_prompts_or_confirms(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Tests that the application correctly handles missing headers when running in a.
-
-    Non-interactive environment, ensuring confirmation prompts are bypassed and value
-    requests fail.
+    """Tests that non-interactive mode never calls prompt or confirm.
 
     Args:
         monkeypatch: A pytest fixture used to temporarily modify attributes or methods
         on modules or classes during testing.
 
     """
-    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        typer,
+        "confirm",
+        lambda *args, **kwargs: pytest.fail("must not call confirm"),
+    )
     monkeypatch.setattr(
         typer,
         "prompt",
-        lambda *args, **kwargs: pytest.fail("must not request values"),
+        lambda *args, **kwargs: pytest.fail("must not call prompt"),
     )
 
-    _ask_missing_headers(Settings(), {"X-Tenant"}, interactive=False)
-
-
-def test_missing_header_aborts_when_execution_is_not_confirmed(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Tests that the application aborts when required headers are missing if.
-
-    Execution confirmation is not requested.
-
-    Args:
-        monkeypatch: A pytest fixture used to temporarily modify attributes or methods
-        on modules.
-
-    """
-    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: False)
-
-    with pytest.raises(typer.Exit) as error:
-        _ask_missing_headers(Settings(), {"X-Tenant"}, interactive=False)
-
-    assert error.value.exit_code == 2
+    missing = _ask_missing_headers(Settings(), {"X-Tenant"}, interactive=False)
+    assert missing == {"x-tenant"}
 
 
 def test_banner_has_truck_emoji() -> None:
@@ -96,17 +78,12 @@ def test_banner_has_truck_emoji() -> None:
     assert BANNER == "É uma cilada, Bino! 🚚"
 
 
-def test_non_interactive_help_describes_header_confirmation() -> None:
-    """Tests that the help output for a non-interactive run correctly describes header.
-
-    Confirmation.
-
-    """
-    result = CliRunner().invoke(app, ["run", "--help"])
+def test_non_interactive_help_describes_non_interactive_mode() -> None:
+    """Tests that the help output describes non-interactive mode."""
+    result = CliRunner().invoke(app, ["run", "--help"], env={"COLUMNS": "200"})
 
     assert result.exit_code == 0
-    assert "Do not request values" in result.output
-    assert "required headers" in result.output
+    assert "non-interactive mode" in result.output
 
 
 def test_config_init_creates_a_valid_template(
@@ -286,6 +263,7 @@ def test_runs_locust_and_prints_the_final_summary(tmp_path: Path) -> None:
         tmp_path: A temporary path object used for creating configuration files.
 
     """
+
     class ApiHandler(BaseHTTPRequestHandler):
         """A handler class that inherits from BaseHTTPRequestHandler.
 
@@ -354,3 +332,184 @@ def test_runs_locust_and_prints_the_final_summary(tmp_path: Path) -> None:
     assert "Requests:" in result.output
     assert "GET:" in result.output
     assert "200:" in result.output
+
+
+def test_runs_without_config_file_using_cli_arguments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tests running cilada without a .cilada.toml configuration file,
+    passing all options via CLI arguments.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    class ApiHandler(BaseHTTPRequestHandler):
+        """A handler class that serves basic API endpoints like /openapi.json.
+
+        And /health.
+
+        """
+
+        def do_GET(self) -> None:  # noqa: N802
+            """Handles HTTP GET requests.
+
+            Serving OpenAPI specification or health check status based on the request
+            path.
+
+            """
+            if self.path == "/openapi.json":
+                body = json.dumps(
+                    {
+                        "openapi": "3.0.3",
+                        "servers": [{"url": server_url}],
+                        "paths": {"/health": {"get": {}}},
+                    }
+                ).encode()
+            elif self.path == "/health":
+                body = b"{}"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            """Logs a message using the provided format string and arguments.
+
+            Args:
+                format: The format string for the log message.
+                args: Variable positional arguments to be formatted into the log
+                message.
+
+            """
+            del format, args
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ApiHandler)
+    server_url = f"http://127.0.0.1:{server.server_port}"
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        result = CliRunner().invoke(
+            app,
+            [
+                "run",
+                "--openapi-url",
+                f"{server_url}/openapi.json",
+                "--users",
+                "1",
+                "--spawn-rate",
+                "10",
+                "--run-time",
+                "1s",
+                "--enabled-methods",
+                "GET",
+                "--cases-per-operation",
+                "1",
+                "--header",
+                "X-Test: 123",
+                "--timeout-seconds",
+                "10",
+            ],
+        )
+    finally:
+        server.shutdown()
+        thread.join()
+
+    assert result.exit_code == 0, result.output
+    assert "Final load test summary" in result.output
+
+
+def test_cli_arguments_override_toml_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tests that CLI arguments take precedence over TOML configuration file values."""
+    monkeypatch.chdir(tmp_path)
+
+    class ApiHandler(BaseHTTPRequestHandler):
+        """A handler class that overrides configuration from TOML arguments.
+
+        And serves OpenAPI specification and health check endpoints.
+
+        """
+
+        def do_GET(self) -> None:  # noqa: N802
+            """Handles GET requests for the API endpoint.
+
+            Serving OpenAPI specification or health check status.
+
+            """
+            if self.path == "/openapi.json":
+                body = json.dumps(
+                    {
+                        "openapi": "3.0.3",
+                        "servers": [{"url": server_url}],
+                        "paths": {"/health": {"get": {}}},
+                    }
+                ).encode()
+            elif self.path == "/health":
+                body = b"{}"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            """Logs a message using the provided format string and arguments.
+
+            Args:
+                format: The format string for the log message (e.g., 'User {} logged
+                in').
+                args: Variable positional arguments to fill the placeholders in the
+                format string.
+
+            """
+            del format, args
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ApiHandler)
+    server_url = f"http://127.0.0.1:{server.server_port}"
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    config = tmp_path / ".cilada.toml"
+    config.write_text(
+        "[api]\n"
+        'openapi_url = "http://invalid-host-should-be-overridden/openapi.json"\n'
+        '\n[locust]\nusers = 100\nspawn_rate = 50\nrun_time = "10m"\n'
+        '\n[test]\nenabled_methods = ["POST"]\ncases_per_operation = 5\n',
+        encoding="utf-8",
+    )
+
+    try:
+        result = CliRunner().invoke(
+            app,
+            [
+                "run",
+                "-c",
+                str(config),
+                "-u",
+                f"{server_url}/openapi.json",
+                "--users",
+                "1",
+                "--spawn-rate",
+                "10",
+                "--run-time",
+                "1s",
+                "-m",
+                "GET",
+                "--cases-per-operation",
+                "1",
+            ],
+        )
+    finally:
+        server.shutdown()
+        thread.join()
+
+    assert result.exit_code == 0, result.output
+    assert "Final load test summary" in result.output
